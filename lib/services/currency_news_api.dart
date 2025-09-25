@@ -5,7 +5,7 @@ class CurrencyNewsApi {
   static const String _apiKey = "8f9sSEXq4HI0Sd3ckbGPwgUOZjaAr9ugmk6fjRcX";
 
   /// ✅ Fetch live currency/forex news
-  static Future<List<dynamic>> fetchCurrencyNews() async {
+  static Future<List<dynamic>> fetchCurrencyNews({required int limit}) async {
     final url = Uri.parse(
         "https://api.marketaux.com/v1/news/all?filter_entities=true&countries=us,gb,pk&topics=forex,currencies&api_token=$_apiKey");
 
@@ -46,3 +46,5 @@ class CurrencyNewsApi {
     }
   }
 }
+
+

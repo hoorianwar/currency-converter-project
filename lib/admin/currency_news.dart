@@ -11,72 +11,13 @@ class CurrencyNews extends StatefulWidget {
 }
 
 class _CurrencyNewsState extends State<CurrencyNews> {
-  late Future<List<dynamic>> presentNews;
-  late Future<List<dynamic>> historyNews;
   late Future<List<dynamic>> liveNews;
 
   @override
   void initState() {
     super.initState();
-    // ✅ Tino section ek hi API ko call karenge abhi
-    presentNews = CurrencyNewsApi.fetchCurrencyNews();
-    historyNews = CurrencyNewsApi.fetchCurrencyNews();
-    liveNews = CurrencyNewsApi.fetchCurrencyNews();
-  }
-
-  Widget _buildNewsSection(String title, Future<List<dynamic>> futureNews) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 20),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-        const SizedBox(height: 10),
-        FutureBuilder<List<dynamic>>(
-          future: futureNews,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return const Text("⚠️ Error loading news");
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Text("No news available");
-            }
-
-            final newsList = snapshot.data!;
-            return Column(
-              children: newsList.map((news) {
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: Icon(Icons.article,
-                        color: Theme.of(context).colorScheme.primary),
-                    title: Text(
-                      news["title"] ?? "No title",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(news["description"] ?? ""),
-                    trailing: Text(
-                      news["published_at"]?.toString().split("T").first ?? "",
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          },
-        ),
-      ],
-    );
+    // ✅ Default 7 news items load hongi
+    liveNews = CurrencyNewsApi.fetchCurrencyNews(limit: 7);
   }
 
   @override
@@ -84,18 +25,98 @@ class _CurrencyNewsState extends State<CurrencyNews> {
     return Scaffold(
       drawer: const DrawerScreen(),
       appBar: AppBar(
-        title: const Text("Currency News"),
+        title: const Text("📰 Live Currency News"),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        elevation: 4,
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildNewsSection("📌 Present Currency News", presentNews),
-            _buildNewsSection("📖 History Currency News", historyNews),
-            _buildNewsSection("📰 Latest Market News", liveNews),
-          ],
+        child: FutureBuilder<List<dynamic>>(
+          future: liveNews,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return const Center(child: Text("⚠️ Error loading news"));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text("No live news available"));
+            }
+
+            final newsList = snapshot.data!;
+            return ListView.builder(
+              itemCount: newsList.length,
+              itemBuilder: (context, index) {
+                final news = newsList[index];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(2, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ✅ Title
+                      Text(
+                        news["title"] ?? "No title",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // ✅ Description
+                      Text(
+                        news["description"] ?? "",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ✅ Date + Trending Icon
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time,
+                                  size: 14, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                news["published_at"]
+                                        ?.toString()
+                                        .split("T")
+                                        .first ??
+                                    "",
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.trending_up,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
       bottomNavigationBar: const Bottomscreen(),
