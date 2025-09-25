@@ -18,9 +18,10 @@ class _CurrencyNewsState extends State<CurrencyNews> {
   @override
   void initState() {
     super.initState();
-    presentNews = ApiService.fetchPresentNews();
-    historyNews = ApiService.fetchHistoryNews();
-    liveNews = ApiService.fetchCurrencyNews();
+    // ✅ Tino section ek hi API ko call karenge abhi
+    presentNews = CurrencyNewsApi.fetchCurrencyNews();
+    historyNews = CurrencyNewsApi.fetchCurrencyNews();
+    liveNews = CurrencyNewsApi.fetchCurrencyNews();
   }
 
   Widget _buildNewsSection(String title, Future<List<dynamic>> futureNews) {
@@ -30,8 +31,10 @@ class _CurrencyNewsState extends State<CurrencyNews> {
         const SizedBox(height: 20),
         Text(
           title,
-          style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
         ),
         const SizedBox(height: 10),
         FutureBuilder<List<dynamic>>(
@@ -39,29 +42,31 @@ class _CurrencyNewsState extends State<CurrencyNews> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
+            } else if (snapshot.hasError) {
               return const Text("⚠️ Error loading news");
-            }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Text("No news available");
             }
 
+            final newsList = snapshot.data!;
             return Column(
-              children: snapshot.data!.map((item) {
+              children: newsList.map((news) {
                 return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  elevation: 2,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(
-                    leading: const Icon(Icons.article, color: Colors.blue),
-                    title: Text(item["title"] ?? "",
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(item["text"] ?? ""),
+                    leading: Icon(Icons.article,
+                        color: Theme.of(context).colorScheme.primary),
+                    title: Text(
+                      news["title"] ?? "No title",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(news["description"] ?? ""),
                     trailing: Text(
-                      item["publishedDate"]?.toString().split("T").first ?? "",
+                      news["published_at"]?.toString().split("T").first ?? "",
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),
@@ -80,7 +85,7 @@ class _CurrencyNewsState extends State<CurrencyNews> {
       drawer: const DrawerScreen(),
       appBar: AppBar(
         title: const Text("Currency News"),
-        backgroundColor: Colors.blue,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
