@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/otp_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -14,31 +16,95 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  void _submitSignup() {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Future<void> _submitSignup() async {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Signing up...')),
-      );
+      try {
+        // 1️⃣ Firebase user create
+        UserCredential userCred = await _auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        final email = _emailController.text.trim();
+
+        // 2️⃣ Send OTP
+        bool sent = await OtpService.sendOtp(email);
+        if (!sent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to send OTP. Try again.')),
+          );
+          return;
+        }
+
+        // 3️⃣ OTP input dialog
+        String? otp = await showDialog<String>(
+          context: context,
+          builder: (ctx) {
+            final otpController = TextEditingController();
+            return AlertDialog(
+              title: const Text('Email Verification'),
+              content: TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Enter OTP',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, otpController.text.trim()),
+                  child: const Text('Verify'),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (otp == null || otp.isEmpty) return;
+
+        // 4️⃣ Verify OTP
+        bool verified = await OtpService.verifyOtp(email, otp);
+
+        if (verified) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Signup successful!')),
+          );
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid OTP')),
+          );
+          await _auth.currentUser?.delete(); // ❌ Unverified account remove
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // 🎯 theme.dart access
+    final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Responsive horizontal padding
     double horizontalPadding = screenWidth > 1000
         ? 150
         : screenWidth > 600
             ? 60
             : 20;
 
-    // Max width for the form
     double maxFormWidth = screenWidth > 800 ? 700 : double.infinity;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor, // ✅ theme background
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20),
@@ -54,52 +120,34 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Responsive Image
                       Image.asset(
                         "assets/images/signup.png",
                         width: screenWidth > 600 ? 300 : 200,
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 20),
-                      Text(
-                        'Sign Up',
-                        style: theme.textTheme.headlineMedium, // ✅ theme text
-                      ),
+                      Text('Sign Up', style: theme.textTheme.headlineMedium),
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: _nameController,
-                        style: theme.textTheme.bodyMedium, // ✅ theme text
                         decoration: InputDecoration(
                           labelText: 'Full Name',
                           prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Name is required';
-                          }
-                          return null;
-                        },
+                        validator: (value) => value!.isEmpty ? 'Name is required' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _emailController,
-                        style: theme.textTheme.bodyMedium, // ✅ theme text
                         decoration: InputDecoration(
                           labelText: 'Email',
                           prefixIcon: const Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Email is required';
-                          } else if (!value.contains('@') || !value.contains('.')) {
-                            return 'Enter a valid email';
-                          }
+                          if (value == null || value.isEmpty) return 'Email is required';
+                          if (!value.contains('@') || !value.contains('.')) return 'Enter valid email';
                           return null;
                         },
                       ),
@@ -107,36 +155,25 @@ class _SignupScreenState extends State<SignupScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
-                        style: theme.textTheme.bodyMedium, // ✅ theme text
                         decoration: InputDecoration(
                           labelText: 'Password',
                           prefixIcon: const Icon(Icons.lock),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Password is required';
-                          } else if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
+                          if (value == null || value.isEmpty) return 'Password is required';
+                          if (value.length < 6) return 'Min 6 characters';
                           return null;
                         },
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: _submitSignup,
-                        child: const Text('Sign Up'), // ✅ Button styling from theme.dart
+                        child: const Text('Sign Up'),
                       ),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/login');
-                        },
-                        child: Text(
-                          'Already have an account? Login',
-                          style: theme.textTheme.bodyMedium, // ✅ theme text
-                        ),
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
+                        child: Text('Already have an account? Login', style: theme.textTheme.bodyMedium),
                       ),
                     ],
                   ),

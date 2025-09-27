@@ -63,8 +63,8 @@ class CurrencyApp extends StatelessWidget {
        
       },
     //  home: const  UserHome(),
+      // home: LoginScreen(),
       home: CurrencyNews(),
-      // home: CurrencyNews(),
       // home: const CurrencyList(),
     );
   }

@@ -16,7 +16,6 @@ class _CurrencyNewsState extends State<CurrencyNews> {
   @override
   void initState() {
     super.initState();
-    // ✅ Default 7 news items load hongi
     liveNews = CurrencyNewsApi.fetchCurrencyNews(limit: 7);
   }
 
@@ -96,11 +95,10 @@ class _CurrencyNewsState extends State<CurrencyNews> {
                                   size: 14, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
-                                news["published_at"]
-                                        ?.toString()
-                                        .split("T")
-                                        .first ??
-                                    "",
+                                (news["published_at"] ?? "")
+                                    .toString()
+                                    .split("T")
+                                    .first,
                                 style: const TextStyle(
                                     fontSize: 12, color: Colors.grey),
                               ),
